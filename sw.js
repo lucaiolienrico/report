@@ -1,5 +1,5 @@
 /* Service Worker — cache offline per Fatture & Scontrini */
-const CACHE = 'fatture-scontrini-v1';
+const CACHE = 'fatture-scontrini-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {

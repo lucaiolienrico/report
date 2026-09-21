@@ -294,7 +294,7 @@ main{padding:14px 0 40px}
 
     <div class="panel">
       <h2>💾 Backup e dati</h2>
-      <p class="hint">I documenti sono salvati <strong>sul tuo dispositivo</strong> (IndexedDB del browser): nessun server, massima privacy. Fai un backup prima di cambiare browser o dispositivo.</p>
+      <p class="hint">I documenti sono salvati <strong>sul tuo dispositivo</strong> (IndexedDB del browser): nessun server, massima privacy. Il ripristino <strong>unisce</strong> i documenti senza duplicare quelli già presenti: usalo per trasferire l'archivio <strong>da PC a smartphone e viceversa</strong> (scarica il backup, inviatelo con email/WhatsApp/Drive, ripristinalo sull'altro dispositivo).</p>
       <div class="backup-btns">
         <button class="btn btn-small" type="button" id="btn-backup">⬇️ Backup JSON</button>
         <label class="btn btn-small" for="file-restore" style="cursor:pointer">⬆️ Ripristina backup</label>
@@ -806,6 +806,10 @@ async function backupJSON() {
     toast('Backup scaricato ✓', 'success');
   } catch (e) { console.error(e); toast('Errore durante il backup', 'error'); }
 }
+function docFingerprint(d) {
+  const norm = (s) => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+  return [d.tipo, norm(d.fornitore), norm(d.numero), d.data || '', Number(d.importo) || 0].join('|');
+}
 async function restoreJSON(file) {
   if (!file) return;
   try {
@@ -813,24 +817,32 @@ async function restoreJSON(file) {
     const parsed = JSON.parse(text);
     const list = Array.isArray(parsed) ? parsed : parsed.docs;
     if (!Array.isArray(list) || !list.length) { toast('File di backup non valido o vuoto', 'error'); return; }
-    toast('Ripristino in corso…', 'info');
+    toast('Unione backup in corso…', 'info');
     const ids = new Set(state.docs.map((d) => d.id));
-    let n = 0;
+    const prints = new Set(state.docs.map(docFingerprint));
+    let added = 0, skipped = 0;
     for (const raw of list) {
       if (!raw || (raw.tipo !== 'fattura' && raw.tipo !== 'scontrino')) continue;
+      if (raw.id && ids.has(raw.id)) { skipped++; continue; }
       const doc = {
-        id: raw.id && !ids.has(raw.id) ? raw.id : uid(),
+        id: raw.id || uid(),
         tipo: raw.tipo, fornitore: String(raw.fornitore || 'Senza nome').slice(0, 120),
         numero: String(raw.numero || '').slice(0, 60), data: raw.data || todayISO(),
         importo: Number(raw.importo) || 0, categoria: String(raw.categoria || 'Altro').slice(0, 60),
         note: String(raw.note || '').slice(0, 500), createdAt: Number(raw.createdAt) || Date.now(),
         fileBlob: null, fileName: String(raw.fileName || ''), fileType: String(raw.fileType || '')
       };
+      const fp = docFingerprint(doc);
+      if (prints.has(fp)) { skipped++; continue; }
       if (raw.fileDataUrl) { try { doc.fileBlob = await dataURLToBlob(raw.fileDataUrl); if (!doc.fileType) doc.fileType = doc.fileBlob.type; } catch (e) {} }
-      ids.add(doc.id); state.docs.push(doc); await dbPut(doc); n++;
+      ids.add(doc.id); prints.add(fp);
+      state.docs.push(doc);
+      try { await dbPut(doc); } catch (e) {}
+      added++;
     }
     renderAll();
-    toast('Ripristinati ' + n + ' documenti ✓', 'success');
+    if (added > 0) toast('Unione completata: ' + added + ' nuovi' + (skipped ? ', ' + skipped + ' già presenti (saltati)' : '') + ' ✓', 'success');
+    else toast('Nessun documento nuovo: era tutto già presente ✓', 'info');
   } catch (e) { console.error(e); toast('Impossibile leggere il backup', 'error'); }
 }
 
