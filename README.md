@@ -9,6 +9,8 @@ organizzato nelle due sezioni dedicate.
 - ✅ Funziona **offline** dopo il primo caricamento (Service Worker + PWA)
 - ✅ Pronta per **GitHub Pages**: fai push e l'app è online
 
+🌐 **Demo online:** `https://lucaiolienrico.github.io/report/`
+
 ---
 
 ## Funzionalità
@@ -32,49 +34,27 @@ organizzato nelle due sezioni dedicate.
 ├── manifest.webmanifest        # Metadati PWA
 ├── sw.js                       # Service Worker (offline)
 ├── icon.svg / icon-*.png       # Icone
-├── .nojekyll                   # Necessario per GitHub Pages
-└── .github/workflows/deploy-pages.yml  # Deploy automatico su Pages
+└── .nojekyll                   # Necessario per GitHub Pages
 ```
 
 ## Prova in locale
 
 ```bash
-cd scontrini-fatture-app
 python3 -m http.server 8000
 # poi apri http://localhost:8000
 ```
 
 (Oppure apri direttamente `index.html` nel browser — funziona anche da file.)
 
-## Pubblicare su GitHub Pages (da PC o smartphone)
+## Pubblicazione su GitHub Pages
 
-### Opzione A — da riga di comando
-
-```bash
-cd scontrini-fatture-app
-git init
-git add .
-git commit -m "Fatture & Scontrini: prima versione"
-git branch -M main
-git remote add origin https://github.com/TUO-UTENTE/fatture-scontrini.git
-git push -u origin main
-```
-
-Poi su GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-Il workflow incluso pubblica automaticamente a ogni push su `main`.
-
-L'app sarà disponibile su:
+La repo è configurata con **Settings → Pages → Source: Deploy from a branch**
+(**Branch: `main`**, cartella **`/ (root)`**): a ogni push su `main` il sito si aggiorna
+automaticamente entro ~1 minuto su:
 
 ```
-https://TUO-UTENTE.github.io/fatture-scontrini/
+https://lucaiolienrico.github.io/report/
 ```
-
-### Opzione B — solo dal browser (anche da smartphone)
-
-1. Crea un nuovo repository pubblico `fatture-scontrini` su github.com
-2. Carica tutti i file di questa cartella (**Add file → Upload files**)
-3. Vai in **Settings → Pages → Source: Deploy from a branch → Branch: main, / (root) → Save**
-4. Dopo ~1 minuto l'app è online all'indirizzo qui sopra
 
 ### Installare l'app sullo smartphone
 
