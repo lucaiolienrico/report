@@ -737,6 +737,9 @@ async function onFormSubmit(e) {
 }
 
 /* ============================== Modale: dettaglio ============================== */
+// Riserva sempre il PDF con MIME esplicito: un blob di tipo diverso (es. arrivato da un backup
+// importato prima di questa correzione) non deve mai essere interpretato come HTML nell'origin dell'app.
+function pdfURL(blob) { return mkURL(new Blob([blob], { type: 'application/pdf' })); }
 function openDetail(id) {
   const d = state.docs.find((x) => x.id === id); if (!d) return;
   state.currentDetailId = id;
@@ -744,7 +747,7 @@ function openDetail(id) {
   $('#detail-title').innerHTML = TIPO_ICO[d.tipo] + ' ' + esc(TIPO_LABEL[d.tipo]) + ' <span class="pill ' + cls + '">' + esc(d.categoria || 'Altro') + '</span>';
   let prev = '<div class="no-file">📎<br>Nessun allegato per questo documento.</div>';
   if (d.fileBlob && (d.fileType || '').startsWith('image/')) prev = '<img src="' + mkURL(d.fileBlob) + '" alt="Allegato ' + esc(d.fornitore) + '">';
-  else if (d.fileBlob && d.fileType === 'application/pdf') prev = '<iframe src="' + mkURL(d.fileBlob) + '" title="Anteprima PDF"></iframe>';
+  else if (d.fileBlob && d.fileType === 'application/pdf') prev = '<iframe src="' + pdfURL(d.fileBlob) + '" title="Anteprima PDF"></iframe>';
   $('#detail-body').innerHTML =
     '<div class="detail-preview">' + prev + '</div>' +
     '<div class="detail-grid">' +
@@ -810,6 +813,21 @@ function docFingerprint(d) {
   const norm = (s) => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
   return [d.tipo, norm(d.fornitore), norm(d.numero), d.data || '', Number(d.importo) || 0].join('|');
 }
+// Il tipo dichiarato nel JSON non è affidabile: conta il MIME reale del blob. Un text/html travestito
+// da PDF finirebbe nell'iframe con l'origin dell'app e potrebbe leggere tutta IndexedDB.
+const SAFE_FILE_TYPE = /^(application\/pdf|image\/(jpe?g|png|webp|gif|bmp|avif|heic|heif))$/;
+async function importAttachment(raw) {
+  if (!raw.fileDataUrl) return null;
+  try {
+    const b = await dataURLToBlob(raw.fileDataUrl);
+    let type = b.type;
+    // Blob senza tipo (file scelto dal disco con MIME vuoto): solo qui ci si affida al tipo dichiarato,
+    // ma il blob viene comunque ri-etichettato con un tipo della whitelist, mai con uno arbitrario.
+    if (!type || type === 'application/octet-stream') type = String(raw.fileType || '');
+    if (!SAFE_FILE_TYPE.test(type)) return null;
+    return { blob: type === b.type ? b : new Blob([b], { type: type }), type: type };
+  } catch (e) { return null; }
+}
 async function restoreJSON(file) {
   if (!file) return;
   try {
@@ -819,8 +837,10 @@ async function restoreJSON(file) {
     if (!Array.isArray(list) || !list.length) { toast('File di backup non valido o vuoto', 'error'); return; }
     toast('Unione backup in corso…', 'info');
     const ids = new Set(state.docs.map((d) => d.id));
-    const prints = new Set(state.docs.map(docFingerprint));
-    let added = 0, skipped = 0;
+    // Snapshot dei soli documenti già presenti PRIMA dell'import: non va aggiornato nel loop,
+    // altrimenti due acquisti reali identici dello stesso backup si annullerebbero a vicenda.
+    const existingPrints = new Set(state.docs.map(docFingerprint));
+    let added = 0, skipped = 0, droppedFiles = 0;
     for (const raw of list) {
       if (!raw || (raw.tipo !== 'fattura' && raw.tipo !== 'scontrino')) continue;
       if (raw.id && ids.has(raw.id)) { skipped++; continue; }
@@ -832,10 +852,14 @@ async function restoreJSON(file) {
         note: String(raw.note || '').slice(0, 500), createdAt: Number(raw.createdAt) || Date.now(),
         fileBlob: null, fileName: String(raw.fileName || ''), fileType: String(raw.fileType || '')
       };
-      const fp = docFingerprint(doc);
-      if (prints.has(fp)) { skipped++; continue; }
-      if (raw.fileDataUrl) { try { doc.fileBlob = await dataURLToBlob(raw.fileDataUrl); if (!doc.fileType) doc.fileType = doc.fileBlob.type; } catch (e) {} }
-      ids.add(doc.id); prints.add(fp);
+      // Senza numero documento l'impronta non distingue due acquisti reali identici (es. 2 caffè allo
+      // stesso bar): il dedupe per impronta vale solo se il numero c'è. Il re-import dello stesso
+      // backup resta coperto dal controllo su id.
+      if (doc.numero && existingPrints.has(docFingerprint(doc))) { skipped++; continue; }
+      const att = await importAttachment(raw);
+      if (att) { doc.fileBlob = att.blob; doc.fileType = att.type; }
+      else { if (raw.fileDataUrl) droppedFiles++; doc.fileName = ''; doc.fileType = ''; }
+      ids.add(doc.id);
       state.docs.push(doc);
       try { await dbPut(doc); } catch (e) {}
       added++;
@@ -843,6 +867,7 @@ async function restoreJSON(file) {
     renderAll();
     if (added > 0) toast('Unione completata: ' + added + ' nuovi' + (skipped ? ', ' + skipped + ' già presenti (saltati)' : '') + ' ✓', 'success');
     else toast('Nessun documento nuovo: era tutto già presente ✓', 'info');
+    if (droppedFiles > 0) toast(droppedFiles + (droppedFiles === 1 ? ' allegato scartato' : ' allegati scartati') + ': tipo di file non valido', 'error');
   } catch (e) { console.error(e); toast('Impossibile leggere il backup', 'error'); }
 }
 
