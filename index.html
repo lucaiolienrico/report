@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fatture &amp; Scontrini — Registro spese</title>
+<meta name="description" content="Registra scontrini e fatture con foto o PDF, consulta lo storico ovunque. Funziona da PC e smartphone, anche offline.">
+<meta name="theme-color" content="#4f46e5">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{
+  --bg:#f3f4fa; --card:#ffffff; --text:#1e2433; --muted:#6b7280;
+  --border:#e5e7f0; --primary:#4f46e5; --primary-dark:#4338ca; --primary-soft:#eef0ff;
+  --fatt:#2563eb; --fatt-soft:#e3edff; --scon:#d97706; --scon-soft:#fdeecd;
+  --danger:#dc2626; --danger-soft:#fde8e8; --ok:#16a34a; --ok-soft:#e2f5e7;
+  --radius:16px; --shadow:0 6px 24px rgba(30,36,51,.08); --shadow-sm:0 2px 8px rgba(30,36,51,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1422; --card:#1a2136; --text:#eef1f8; --muted:#9aa3bd;
+    --border:#2a3350; --primary:#818cf8; --primary-dark:#a5b4fc; --primary-soft:#262f52;
+    --fatt:#7aa5ff; --fatt-soft:#22335c; --scon:#f2b04d; --scon-soft:#4a3a1c;
+    --danger:#ff8a8a; --danger-soft:#4d2226; --ok:#5fd68a; --ok-soft:#16382a;
+    --shadow:0 6px 24px rgba(0,0,0,.35); --shadow-sm:0 2px 8px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+h1,h2,h3{margin:0;line-height:1.25}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text)}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px;border-radius:6px}
+
+/* ---------- Header ---------- */
+.topbar{position:sticky;top:0;z-index:40;background:var(--card);border-bottom:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.topbar-inner{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+.logo svg{width:26px;height:26px}
+.brand h1{font-size:1.15rem;letter-spacing:-.01em}
+.brand p{margin:2px 0 0;font-size:.8rem;color:var(--muted)}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:10px 16px;font-weight:600;text-decoration:none;transition:transform .06s ease,box-shadow .15s,background .15s;box-shadow:var(--shadow-sm);white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+@media (prefers-color-scheme: dark){.btn-primary{color:#10142a}}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{box-shadow:none}
+.btn-danger{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
+.btn-small{padding:7px 12px;font-size:.85rem;border-radius:10px}
+.btn-block{width:100%}
+.btn .ico{font-size:1.05em}
+
+/* ---------- Tabs ---------- */
+.tabs{position:sticky;top:69px;z-index:30;background:var(--bg);padding:12px 0 4px}
+.tabs-inner{display:flex;gap:8px}
+.tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:var(--card);border-radius:14px;padding:11px 8px;font-weight:700;color:var(--muted);box-shadow:var(--shadow-sm)}
+.tab .ico{font-size:1.2em}
+.tab.active{color:var(--text);border-color:var(--primary);background:var(--primary-soft)}
+.count{display:inline-flex;min-width:26px;height:24px;padding:0 7px;border-radius:999px;background:var(--border);color:var(--text);font-size:.78rem;font-weight:800;align-items:center;justify-content:center}
+.tab.active .count{background:var(--primary);color:#fff}
+@media (prefers-color-scheme: dark){.tab.active .count{color:#10142a}}
+
+/* ---------- Layout ---------- */
+main{padding:14px 0 40px}
+.view{animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:18px;margin-top:14px}
+.panel h2{font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.panel-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.panel-head .spacer{flex:1}
+
+/* ---------- Guide / stats ---------- */
+.guide{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none}
+.guide h2{color:#fff}
+.guide ol{margin:10px 0 14px;padding-left:20px;font-size:.92rem;opacity:.95}
+.guide-actions{display:flex;gap:8px;flex-wrap:wrap}
+.guide .btn{border:none}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px}
+.stat .k{font-size:.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.stat .v{font-size:1.35rem;font-weight:800;margin-top:2px}
+.stat .s{font-size:.82rem;color:var(--muted)}
+.stat.f{border-top:4px solid var(--fatt)} .stat.s{border-top:4px solid var(--scon)}
+.stat.m{border-top:4px solid var(--primary)} .stat.a{border-top:4px solid var(--ok)}
+
+/* ---------- Chart ---------- */
+.legend{display:flex;gap:14px;font-size:.82rem;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.dot.f{background:var(--fatt)} .dot.s{background:var(--scon)}
+.chart{display:flex;align-items:flex-end;gap:10px;height:190px;margin-top:14px;padding-top:8px}
+.bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;height:100%;justify-content:flex-end}
+.bars{display:flex;align-items:flex-end;gap:5px;height:140px}
+.bar{width:22px;max-width:6vw;border-radius:7px 7px 3px 3px;min-height:4px;transition:height .3s}
+.bar.f{background:linear-gradient(180deg,var(--fatt),#1e40af33);background-color:var(--fatt)}
+.bar.s{background:linear-gradient(180deg,var(--scon),#92400e33);background-color:var(--scon)}
+.bar-label{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:capitalize}
+.bar-val{font-size:.68rem;color:var(--muted)}
+
+/* ---------- Rows (recent) ---------- */
+.rows{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.row{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg);cursor:pointer;text-align:left;width:100%}
+.row:hover{border-color:var(--primary)}
+.row .r-ico{width:40px;height:40px;flex:0 0 40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.25rem}
+.r-ico.f{background:var(--fatt-soft)} .r-ico.s{background:var(--scon-soft)}
+.row .r-main{min-width:0;flex:1}
+.row .r-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r-sub{font-size:.8rem;color:var(--muted)}
+.row .r-amt{font-weight:800;white-space:nowrap}
+
+/* ---------- Section head + toolbar ---------- */
+.section-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:6px}
+.section-head h2{font-size:1.4rem;display:flex;align-items:center;gap:10px}
+.section-head p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.section-head .spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:800;padding:4px 11px;border-radius:999px}
+.pill.f{background:var(--fatt-soft);color:var(--fatt)} .pill.s{background:var(--scon-soft);color:var(--scon)}
+.toolbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:12px;margin-top:12px;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field.full{grid-column:1/-1}
+.field label{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{border:1.5px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);outline:none;background:var(--card)}
+.meta-line{display:flex;align-items:center;gap:10px;margin:14px 2px 10px;color:var(--muted);font-size:.88rem;flex-wrap:wrap}
+.meta-line strong{color:var(--text)}
+
+/* ---------- Cards grid ---------- */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.doc-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;cursor:pointer;transition:transform .08s,box-shadow .15s;display:flex;flex-direction:column}
+.doc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--primary)}
+.thumb{aspect-ratio:4/3;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;border-bottom:1px solid var(--border)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb-pdf{flex-direction:column;gap:6px;color:var(--danger);font-weight:800}
+.thumb-pdf svg{width:44px;height:44px}
+.thumb-none{color:var(--muted)}
+.thumb-none svg{width:44px;height:44px;opacity:.5}
+.card-body{padding:11px 12px 12px;display:flex;flex-direction:column;gap:5px;flex:1}
+.card-title{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-sub{font-size:.78rem;color:var(--muted)}
+.card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-amt{font-weight:800;font-size:1.02rem}
+.badge{font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--primary-soft);color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.badge.f{background:var(--fatt-soft);color:var(--fatt)} .badge.s{background:var(--scon-soft);color:var(--scon)}
+
+/* ---------- Empty ---------- */
+.empty{text-align:center;padding:38px 18px;color:var(--muted)}
+.empty .big{font-size:3rem}
+.empty h3{color:var(--text);margin:8px 0 4px}
+.empty p{margin:0 0 14px;font-size:.9rem}
+
+/* ---------- Modal ---------- */
+.backdrop{position:fixed;inset:0;background:rgba(15,20,34,.55);backdrop-filter:blur(3px);z-index:100;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);width:100%;max-width:640px;max-height:calc(100dvh - 28px);overflow-y:auto;padding:20px;animation:pop .18s ease}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.modal-head h2{font-size:1.2rem;flex:1}
+.x{border:1px solid var(--border);background:var(--bg);border-radius:10px;width:36px;height:36px;font-size:1.1rem;line-height:1;color:var(--muted)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:6px;margin-bottom:14px}
+.seg button{border:1px solid transparent;background:transparent;border-radius:10px;padding:11px;font-weight:800;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}
+.seg button.on-f{background:var(--fatt);color:#fff}
+.seg button.on-s{background:var(--scon);color:#fff}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.dropzone{border:2px dashed var(--border);border-radius:14px;background:var(--bg);padding:14px;text-align:center;transition:border-color .15s,background .15s}
+.dropzone.over{border-color:var(--primary);background:var(--primary-soft)}
+.dropzone p{margin:6px 0 10px;font-size:.88rem;color:var(--muted)}
+.dz-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.file-preview{margin-top:12px;position:relative}
+.file-preview img{max-width:100%;max-height:260px;border-radius:12px;border:1px solid var(--border);display:block;margin:0 auto}
+.file-preview .pdf-tag{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-weight:700}
+.form-actions{display:flex;gap:10px;margin-top:16px;position:sticky;bottom:-20px;background:var(--card);padding:12px 0 4px}
+.form-actions .btn{flex:1}
+
+/* ---------- Detail ---------- */
+.detail-preview{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg);margin-bottom:14px}
+.detail-preview img{width:100%;max-height:380px;object-fit:contain;display:block;background:#111}
+.detail-preview iframe{width:100%;height:420px;border:0;background:#fff}
+.no-file{padding:26px;text-align:center;color:var(--muted)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-grid .full{grid-column:1/-1}
+.d-item{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:9px 12px}
+.d-item .k{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.d-item .v{font-weight:700;margin-top:1px;word-break:break-word}
+.d-item .v.big{font-size:1.25rem}
+.detail-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.detail-actions .btn{flex:1;min-width:130px}
+
+/* ---------- Toast ---------- */
+#toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(92vw,420px)}
+.toast{background:#1e2433;color:#fff;border-radius:12px;padding:11px 18px;font-weight:600;font-size:.9rem;box-shadow:var(--shadow);animation:toastIn .2s ease;max-width:100%;text-align:center}
+.toast.success{background:var(--ok)} .toast.error{background:var(--danger)} .toast.info{background:#1e2433}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- FAB / footer ---------- */
+.fab{display:none;position:fixed;right:18px;bottom:96px;z-index:60;width:60px;height:60px;border-radius:50%;border:none;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:2rem;line-height:1;box-shadow:0 10px 26px rgba(79,70,229,.45)}
+.footer{text-align:center;color:var(--muted);font-size:.78rem;padding:18px 0 8px}
+
+/* ---------- Responsive ---------- */
+@media (max-width:760px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .toolbar{grid-template-columns:1fr 1fr}
+  .form-grid,.detail-grid{grid-template-columns:1fr}
+  .brand p{display:none}
+  .brand h1{font-size:1rem}
+  .btn-new-txt{display:none}
+  #btn-new{padding:10px 13px}
+  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--border);padding:8px 12px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.08)}
+  .tab{flex-direction:column;gap:2px;font-size:.72rem;padding:8px 4px;border:none;box-shadow:none;background:transparent}
+  .tab.active{background:var(--primary-soft)}
+  .tab .ico{font-size:1.35em}
+  .count{min-width:22px;height:20px;font-size:.7rem}
+  main{padding-bottom:110px}
+  .fab{display:block}
+  #toast-wrap{bottom:170px}
+  .modal{padding:16px}
+  .backdrop{padding:8px;align-items:flex-end}
+  .modal{border-radius:20px 20px 0 0;max-width:100%}
+}
+@media (min-width:761px){.fab{display:none}}
+.backup-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.hint{font-size:.82rem;color:var(--muted);margin-top:10px}
+.danger-zone{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+      </div>
+      <div>
+        <h1>Fatture &amp; Scontrini</h1>
+        <p>Registro spese con foto e PDF · PC &amp; smartphone</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" id="btn-new" type="button"><span class="ico">＋</span><span class="btn-new-txt">Nuovo documento</span></button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sezioni">
+  <div class="wrap tabs-inner">
+    <button class="tab active" type="button" data-view="dashboard"><span class="ico">📊</span><span>Panoramica</span></button>
+    <button class="tab" type="button" data-view="fatture"><span class="ico">📄</span><span>Fatture</span><span class="count" id="count-fattura">0</span></button>
+    <button class="tab" type="button" data-view="scontrini"><span class="ico">🧾</span><span>Scontrini</span><span class="count" id="count-scontrino">0</span></button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ============ PANORAMICA ============ -->
+  <section class="view" id="view-dashboard">
+    <div class="panel guide">
+      <h2>📸 Come funziona</h2>
+      <ol>
+        <li>Tocca <strong>Nuovo documento</strong> e scegli <strong>Fattura</strong> o <strong>Scontrino</strong>.</li>
+        <li><strong>Scatta una foto</strong> allo scontrino/fattura oppure <strong>carica un PDF</strong>.</li>
+        <li>Ritrova tutto nello <strong>storico</strong> delle sezioni Fatture e Scontrini.</li>
+      </ol>
+      <div class="guide-actions">
+        <button class="btn" type="button" data-action="new-doc" data-tipo="fattura">📄 ＋ Fattura</button>
+        <button class="btn" type="button" data-action="new-doc" data-tipo="scontrino">🧾 ＋ Scontrino</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat f"><div class="k">📄 Fatture</div><div class="v" id="stat-fatture-n">0</div><div class="s" id="stat-fatture-tot">€ 0,00</div></div>
+      <div class="stat s"><div class="k">🧾 Scontrini</div><div class="v" id="stat-scontrini-n">0</div><div class="s" id="stat-scontrini-tot">€ 0,00</div></div>
+      <div class="stat m"><div class="k">🗓️ Questo mese</div><div class="v" id="stat-mese">€ 0,00</div><div class="s" id="stat-mese-n">0 documenti</div></div>
+      <div class="stat a"><div class="k">📆 Quest'anno</div><div class="v" id="stat-anno">€ 0,00</div><div class="s" id="stat-anno-n">0 documenti</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>📈 Andamento ultimi 6 mesi</h2></div>
+      <div class="legend"><span><span class="dot f"></span>Fatture</span><span><span class="dot s"></span>Scontrini</span></div>
+      <div class="chart" id="chart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>🕘 Ultimi documenti registrati</h2><span class="spacer"></span><span class="hint" style="margin:0">tocca per aprire</span></div>
+      <div class="rows" id="recent-list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>💾 Backup e dati</h2>
+      <p class="hint">I documenti sono salvati <strong>sul tuo dispositivo</strong> (IndexedDB del browser): nessun server, massima privacy. Fai un backup prima di cambiare browser o dispositivo.</p>
+      <div class="backup-btns">
+        <button class="btn btn-small" type="button" id="btn-backup">⬇️ Backup JSON</button>
+        <label class="btn btn-small" for="file-restore" style="cursor:pointer">⬆️ Ripristina backup</label>
+        <button class="btn btn-small" type="button" data-action="export-csv" data-tipo="fattura">📄 CSV fatture</button>
+        <button class="btn btn-small" type="button" data-action="export-csv" data-tipo="scontrino">🧾 CSV scontrini</button>
+        <span id="sample-wrap"><button class="btn btn-small btn-ghost" type="button" id="btn-sample">✨ Carica dati di esempio</button></span>
+      </div>
+      <div class="danger-zone">
+        <button class="btn btn-small btn-danger" type="button" id="btn-wipe">🗑️ Elimina tutti i dati</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FATTURE ============ -->
+  <section class="view" id="view-fatture" hidden>
+    <div class="section-head">
+      <div><h2>📄 Fatture <span class="pill f">storico</span></h2><p>Tutte le fatture registrate, con foto o PDF allegati.</p></div>
+      <span class="spacer"></span>
+      <button class="btn btn-small" type="button" data-action="export-csv" data-tipo="fattura">⬇️ Esporta CSV</button>
+      <button class="btn btn-small btn-primary" type="button" data-action="new-doc" data-tipo="fattura">＋ Nuova fattura</button>
+    </div>
+    <div class="toolbar">
+      <div class="field full"><label for="search-fattura">🔍 Cerca</label><input id="search-fattura" data-tipo="fattura" data-filter="q" type="search" placeholder="Fornitore, numero, nota…" autocomplete="off"></div>
+      <div class="field"><label for="filter-cat-fattura">Categoria</label><select id="filter-cat-fattura" data-tipo="fattura" data-filter="cat"></select></div>
+      <div class="field"><label for="filter-month-fattura">Mese</label><input id="filter-month-fattura" data-tipo="fattura" data-filter="month" type="month"></div>
+      <div class="field"><label for="sort-fattura">Ordina</label><select id="sort-fattura" data-tipo="fattura" data-filter="sort">
+        <option value="data-desc">Data ↓ (recenti)</option><option value="data-asc">Data ↑ (vecchi)</option>
+        <option value="importo-desc">Importo ↓</option><option value="importo-asc">Importo ↑</option>
+        <option value="fornitore-asc">Fornitore A–Z</option></select></div>
+      <div class="field"><label>&nbsp;</label><button class="btn btn-small btn-ghost" type="button" data-action="clear-filters" data-tipo="fattura">✖️ Azzera filtri</button></div>
+    </div>
+    <div class="meta-line" id="meta-fattura"></div>
+    <div class="cards-grid" id="grid-fattura"></div>
+  </section>
+
+  <!-- ============ SCONTRINI ============ -->
+  <section class="view" id="view-scontrini" hidden>
+    <div class="section-head">
+      <div><h2>🧾 Scontrini <span class="pill s">storico</span></h2><p>Tutti gli scontrini registrati, con foto o PDF allegati.</p></div>
+      <span class="spacer"></span>
+      <button class="btn btn-small" type="button" data-action="export-csv" data-tipo="scontrino">⬇️ Esporta CSV</button>
+      <button class="btn btn-small btn-primary" type="button" data-action="new-doc" data-tipo="scontrino">＋ Nuovo scontrino</button>
+    </div>
+    <div class="toolbar">
+      <div class="field full"><label for="search-scontrino">🔍 Cerca</label><input id="search-scontrino" data-tipo="scontrino" data-filter="q" type="search" placeholder="Esercente, numero, nota…" autocomplete="off"></div>
+      <div class="field"><label for="filter-cat-scontrino">Categoria</label><select id="filter-cat-scontrino" data-tipo="scontrino" data-filter="cat"></select></div>
+      <div class="field"><label for="filter-month-scontrino">Mese</label><input id="filter-month-scontrino" data-tipo="scontrino" data-filter="month" type="month"></div>
+      <div class="field"><label for="sort-scontrino">Ordina</label><select id="sort-scontrino" data-tipo="scontrino" data-filter="sort">
+        <option value="data-desc">Data ↓ (recenti)</option><option value="data-asc">Data ↑ (vecchi)</option>
+        <option value="importo-desc">Importo ↓</option><option value="importo-asc">Importo ↑</option>
+        <option value="fornitore-asc">Esercente A–Z</option></select></div>
+      <div class="field"><label>&nbsp;</label><button class="btn btn-small btn-ghost" type="button" data-action="clear-filters" data-tipo="scontrino">✖️ Azzera filtri</button></div>
+    </div>
+    <div class="meta-line" id="meta-scontrino"></div>
+    <div class="cards-grid" id="grid-scontrino"></div>
+  </section>
+
+  <div class="footer">Fatture &amp; Scontrini · dati salvati solo sul tuo dispositivo · funziona offline dopo il primo caricamento</div>
+</main>
+
+<button class="fab" id="fab" type="button" aria-label="Nuovo documento">＋</button>
+
+<!-- ============ MODALI ============ -->
+<div class="backdrop" id="modal-backdrop" hidden>
+  <div class="modal" id="modal-form" hidden role="dialog" aria-modal="true" aria-labelledby="form-title">
+    <form id="doc-form" autocomplete="off">
+      <div class="modal-head"><h2 id="form-title">Nuovo documento</h2><button class="x" type="button" data-action="close-modal" aria-label="Chiudi">✕</button></div>
+      <div class="seg" role="tablist" aria-label="Tipo documento">
+        <button type="button" data-set-tipo="fattura">📄 Fattura</button>
+        <button type="button" data-set-tipo="scontrino">🧾 Scontrino</button>
+      </div>
+      <div class="form-grid">
+        <div class="field full"><label for="f-fornitore" id="lbl-fornitore">Fornitore / Esercente *</label><input id="f-fornitore" required maxlength="120" placeholder="es. Enel Energia, Bar Centrale…"></div>
+        <div class="field"><label for="f-numero">Numero documento</label><input id="f-numero" maxlength="60" placeholder="es. FE-2026-118"></div>
+        <div class="field"><label for="f-data">Data *</label><input id="f-data" type="date" required></div>
+        <div class="field"><label for="f-importo">Importo (€) *</label><input id="f-importo" type="number" min="0" step="0.01" inputmode="decimal" required placeholder="0,00"></div>
+        <div class="field"><label for="f-categoria">Categoria</label><input id="f-categoria" list="cat-list" maxlength="60" placeholder="Scegli o scrivi…"><datalist id="cat-list"></datalist></div>
+        <div class="field full"><label for="f-note">Note</label><textarea id="f-note" rows="2" maxlength="500" placeholder="Note facoltative…"></textarea></div>
+        <div class="field full">
+          <label>Allegato — foto o PDF</label>
+          <div class="dropzone" id="dropzone">
+            <div style="font-size:2rem">📎</div>
+            <p>Trascina qui un file, oppure usa i pulsanti.<br>Su smartphone puoi <strong>scattare una foto</strong> direttamente.</p>
+            <div class="dz-btns">
+              <label class="btn btn-small btn-primary" for="file-camera" style="cursor:pointer">📷 Scatta foto</label>
+              <label class="btn btn-small" for="file-generic" style="cursor:pointer">🖼️ Immagine / PDF</label>
+              <button class="btn btn-small btn-danger" type="button" id="btn-remove-file" hidden>✖️ Rimuovi</button>
+            </div>
+            <div class="file-preview" id="file-preview"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button" data-action="close-modal">Annulla</button>
+        <button class="btn btn-primary" type="submit">💾 Salva documento</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal" id="modal-detail" hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="modal-head"><h2 id="detail-title">Dettaglio</h2><button class="x" type="button" data-action="close-modal" aria-label="Chiudi">✕</button></div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<div id="toast-wrap" aria-live="polite"></div>
+
+<input type="file" id="file-camera" accept="image/*" capture="environment" hidden>
+<input type="file" id="file-generic" accept="image/*,application/pdf,.pdf" hidden>
+<input type="file" id="file-restore" accept="application/json,.json" hidden>
+
+<script>
+'use strict';
+/* ============================== Helpers ============================== */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+const fmtEUR = (n) => eur.format(Number(n) || 0);
+function todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function fmtDateIT(iso) {
+  if (!iso) return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); if (!m) return esc(iso);
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function fmtSize(b) { if (b == null) return ''; if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1).replace('.', ',') + ' KB'; return (b / 1048576).toFixed(2).replace('.', ',') + ' MB'; }
+function toast(msg, type) {
+  const t = document.createElement('div'); t.className = 'toast ' + (type || 'info'); t.textContent = msg;
+  $('#toast-wrap').appendChild(t); setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320); }, 3200);
+}
+function debounce(fn, ms) { let h; return function () { clearTimeout(h); const a = arguments, s = this; h = setTimeout(() => fn.apply(s, a), ms); }; }
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a'); const url = URL.createObjectURL(blob);
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+const TIPO_LABEL = { fattura: 'Fattura', scontrino: 'Scontrino' };
+const TIPO_ICO = { fattura: '📄', scontrino: '🧾' };
+const DEFAULT_CATS = {
+  fattura: ['Utenze', 'Affitto', 'Fornitori', 'Servizi professionali', 'Software e abbonamenti', 'Marketing', 'Trasporti', 'Altro'],
+  scontrino: ['Alimentari', 'Ristoranti e bar', 'Carburante', 'Abbigliamento', 'Salute e farmacia', 'Casa e manutenzione', 'Trasporti', 'Svago', 'Altro']
+};
+const FILE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>';
+
+/* ============================== Database (IndexedDB) ============================== */
+const DB_NAME = 'fatture-scontrini-db', DB_STORE = 'documents';
+let db = null, idbOK = false; const memFallback = [];
+function openDB() {
+  return new Promise((resolve, reject) => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = (e) => { const d = e.target.result; if (!d.objectStoreNames.contains(DB_STORE)) d.createObjectStore(DB_STORE, { keyPath: 'id' }); };
+      req.onsuccess = (e) => { db = e.target.result; idbOK = true; resolve(); };
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('blocked'));
+    } catch (err) { reject(err); }
+  });
+}
+const os = (mode) => db.transaction(DB_STORE, mode).objectStore(DB_STORE);
+function dbAll() {
+  if (!idbOK) return Promise.resolve(memFallback.slice());
+  return new Promise((res, rej) => { const r = os('readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); });
+}
+function dbPut(doc) {
+  if (!idbOK) { const i = memFallback.findIndex((d) => d.id === doc.id); if (i >= 0) memFallback[i] = doc; else memFallback.push(doc); return Promise.resolve(); }
+  return new Promise((res, rej) => { const r = os('readwrite').put(doc); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+}
+function dbDel(id) {
+  if (!idbOK) { const i = memFallback.findIndex((d) => d.id === id); if (i >= 0) memFallback.splice(i, 1); return Promise.resolve(); }
+  return new Promise((res, rej) => { const r = os('readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+}
+function dbClear() {
+  if (!idbOK) { memFallback.length = 0; return Promise.resolve(); }
+  return new Promise((res, rej) => { const r = os('readwrite').clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+}
+
+/* ============================== Stato ============================== */
+const freshFilters = () => ({ q: '', cat: 'all', month: '', sort: 'data-desc' });
+const state = {
+  docs: [], view: 'dashboard', formTipo: 'scontrino', lastTipo: 'scontrino',
+  editingId: null, pendingFile: null, removeExistingFile: false, currentDetailId: null,
+  filters: { fattura: freshFilters(), scontrino: freshFilters() }
+};
+let objectURLs = [];
+function freshURLs() { objectURLs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} }); objectURLs = []; }
+function mkURL(blob) { const u = URL.createObjectURL(blob); objectURLs.push(u); return u; }
+
+/* ============================== File ============================== */
+function compressImage(file, maxDim, quality) {
+  maxDim = maxDim || 1920; quality = quality || 0.85;
+  return new Promise((resolve) => {
+    const done = (b) => resolve(b && b.size > 0 ? b : file);
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { URL.revokeObjectURL(url); return done(file); }
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch);
+        ctx.drawImage(img, 0, 0, cw, ch); URL.revokeObjectURL(url);
+        if (c.toBlob) c.toBlob((b) => done(b || file), 'image/jpeg', quality); else done(file);
+      } catch (e) { URL.revokeObjectURL(url); done(file); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); done(file); };
+    img.src = url;
+  });
+}
+async function handleIncomingFile(file) {
+  if (!file) return;
+  const name = file.name || '';
+  const isImg = (file.type || '').startsWith('image/');
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(name);
+  if (!isImg && !isPdf) { toast('Formato non supportato: usa un’immagine o un PDF', 'error'); return; }
+  if (file.size > 25 * 1024 * 1024) { toast('File troppo grande (max 25 MB)', 'error'); return; }
+  toast('Elaborazione allegato…', 'info');
+  try {
+    let blob = file, type = file.type || (isPdf ? 'application/pdf' : 'image/jpeg'), fname = name || (isPdf ? 'documento.pdf' : 'foto.jpg');
+    if (isImg) { blob = await compressImage(file); type = blob.type || 'image/jpeg'; if (!/\.(jpe?g|png|webp|gif)$/i.test(fname)) fname = fname.replace(/\.\w*$/, '') + '.jpg'; }
+    state.pendingFile = { blob: blob, name: fname, type: type };
+    state.removeExistingFile = false;
+    updateFilePreview();
+    toast('Allegato pronto ✓', 'success');
+  } catch (e) { toast('Impossibile leggere il file', 'error'); }
+}
+function blobToDataURL(blob) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); }); }
+async function dataURLToBlob(durl) { const r = await fetch(durl); return await r.blob(); }
+
+/* ============================== Filtri / ordinamento ============================== */
+function getFiltered(tipo) {
+  const f = state.filters[tipo];
+  let arr = state.docs.filter((d) => d.tipo === tipo);
+  if (f.q) { const q = f.q.toLowerCase(); arr = arr.filter((d) => ((d.fornitore || '') + ' ' + (d.numero || '') + ' ' + (d.note || '') + ' ' + (d.categoria || '')).toLowerCase().includes(q)); }
+  if (f.cat !== 'all') arr = arr.filter((d) => (d.categoria || '') === f.cat);
+  if (f.month) arr = arr.filter((d) => (d.data || '').slice(0, 7) === f.month);
+  const sorts = {
+    'data-desc': (a, b) => (b.data || '').localeCompare(a.data || '') || (b.createdAt - a.createdAt),
+    'data-asc': (a, b) => (a.data || '').localeCompare(b.data || '') || (a.createdAt - b.createdAt),
+    'importo-desc': (a, b) => (b.importo - a.importo),
+    'importo-asc': (a, b) => (a.importo - b.importo),
+    'fornitore-asc': (a, b) => (a.fornitore || '').localeCompare(b.fornitore || '', 'it')
+  };
+  arr.sort(sorts[f.sort] || sorts['data-desc']);
+  return arr;
+}
+function catsFor(tipo) {
+  const set = new Set(DEFAULT_CATS[tipo]);
+  state.docs.forEach((d) => { if (d.tipo === tipo && d.categoria) set.add(d.categoria); });
+  return Array.from(set);
+}
+
+/* ============================== Render ============================== */
+function thumbHTML(doc) {
+  if (doc.fileBlob && (doc.fileType || '').startsWith('image/')) {
+    return '<div class="thumb"><img src="' + mkURL(doc.fileBlob) + '" alt="Allegato di ' + esc(doc.fornitore) + '" loading="lazy"></div>';
+  }
+  if (doc.fileBlob && doc.fileType === 'application/pdf') {
+    return '<div class="thumb thumb-pdf">' + FILE_SVG + '<span>PDF · ' + esc(fmtSize(doc.fileBlob.size)) + '</span></div>';
+  }
+  return '<div class="thumb thumb-none">' + FILE_SVG + '</div>';
+}
+function cardHTML(doc) {
+  const cls = doc.tipo === 'fattura' ? 'f' : 's';
+  return '<article class="doc-card" data-action="open-detail" data-id="' + esc(doc.id) + '" tabindex="0" role="button" aria-label="' + esc(TIPO_LABEL[doc.tipo] + ' ' + doc.fornitore) + '">' +
+    thumbHTML(doc) +
+    '<div class="card-body"><div class="card-title">' + esc(doc.fornitore) + '</div>' +
+    '<div class="card-sub">' + esc(fmtDateIT(doc.data)) + (doc.numero ? ' · n. ' + esc(doc.numero) : '') + '</div>' +
+    '<div class="card-foot"><span class="badge ' + cls + '">' + esc(doc.categoria || 'Altro') + '</span><span class="card-amt">' + esc(fmtEUR(doc.importo)) + '</span></div></div></article>';
+}
+function renderSection(tipo) {
+  const sel = $('#filter-cat-' + tipo);
+  const keep = state.filters[tipo].cat;
+  sel.innerHTML = '<option value="all">Tutte le categorie</option>' + catsFor(tipo).map((c) => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+  sel.value = keep !== 'all' && !catsFor(tipo).includes(keep) ? 'all' : keep;
+  state.filters[tipo].cat = sel.value;
+  const arr = getFiltered(tipo);
+  const tot = arr.reduce((s, d) => s + (Number(d.importo) || 0), 0);
+  const all = state.docs.filter((d) => d.tipo === tipo).length;
+  $('#meta-' + tipo).innerHTML = '<strong>' + arr.length + '</strong> document' + (arr.length === 1 ? 'o' : 'i') +
+    (arr.length !== all ? ' (su ' + all + ')' : '') + ' · Totale <strong>' + esc(fmtEUR(tot)) + '</strong>';
+  const grid = $('#grid-' + tipo);
+  if (!arr.length) {
+    const isF = tipo === 'fattura';
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">' + (isF ? '📄' : '🧾') + '</div><h3>' +
+      (all ? 'Nessun risultato' : 'Nessuna ' + (isF ? 'fattura' : 'scontrino') + ' registrata') + '</h3><p>' +
+      (all ? 'Prova a modificare i filtri di ricerca.' : 'Scatta una foto o carica un PDF per iniziare.') + '</p>' +
+      (all ? '' : '<button class="btn btn-primary" type="button" data-action="new-doc" data-tipo="' + tipo + '">＋ Registra la prima</button>') + '</div>';
+    return;
+  }
+  grid.innerHTML = arr.map(cardHTML).join('');
+}
+function renderCounts() {
+  const nf = state.docs.filter((d) => d.tipo === 'fattura').length;
+  const ns = state.docs.filter((d) => d.tipo === 'scontrino').length;
+  $('#count-fattura').textContent = nf; $('#count-scontrino').textContent = ns;
+}
+function last6Months() {
+  const out = []; const now = new Date();
+  for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({ key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), label: d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '') }); }
+  return out;
+}
+function renderDashboard() {
+  const docs = state.docs;
+  const f = docs.filter((d) => d.tipo === 'fattura'), s = docs.filter((d) => d.tipo === 'scontrino');
+  const sum = (a) => a.reduce((t, d) => t + (Number(d.importo) || 0), 0);
+  const mk = todayISO().slice(0, 7), yk = todayISO().slice(0, 4);
+  const md = docs.filter((d) => (d.data || '').slice(0, 7) === mk), yd = docs.filter((d) => (d.data || '').slice(0, 4) === yk);
+  $('#stat-fatture-n').textContent = f.length; $('#stat-fatture-tot').textContent = fmtEUR(sum(f));
+  $('#stat-scontrini-n').textContent = s.length; $('#stat-scontrini-tot').textContent = fmtEUR(sum(s));
+  $('#stat-mese').textContent = fmtEUR(sum(md)); $('#stat-mese-n').textContent = md.length + ' documenti';
+  $('#stat-anno').textContent = fmtEUR(sum(yd)); $('#stat-anno-n').textContent = yd.length + ' documenti';
+  // Grafico
+  const months = last6Months();
+  const data = months.map((m) => ({ label: m.label, f: sum(docs.filter((d) => d.tipo === 'fattura' && (d.data || '').slice(0, 7) === m.key)), s: sum(docs.filter((d) => d.tipo === 'scontrino' && (d.data || '').slice(0, 7) === m.key)) }));
+  const max = Math.max(1, ...data.map((d) => Math.max(d.f, d.s)));
+  $('#chart').innerHTML = data.map((d) => {
+    const hf = Math.max(3, Math.round((d.f / max) * 100)), hs = Math.max(3, Math.round((d.s / max) * 100));
+    return '<div class="bar-group"><div class="bars"><div class="bar f" style="height:' + hf + '%" title="Fatture: ' + esc(fmtEUR(d.f)) + '"></div>' +
+      '<div class="bar s" style="height:' + hs + '%" title="Scontrini: ' + esc(fmtEUR(d.s)) + '"></div></div>' +
+      '<div class="bar-val">' + (d.f + d.s > 0 ? esc(fmtEUR(d.f + d.s)) : '') + '</div><div class="bar-label">' + esc(d.label) + '</div></div>';
+  }).join('');
+  // Recenti
+  const recent = docs.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
+  $('#recent-list').innerHTML = recent.length ? recent.map((d) => {
+    const cls = d.tipo === 'fattura' ? 'f' : 's';
+    return '<button class="row" type="button" data-action="open-detail" data-id="' + esc(d.id) + '"><span class="r-ico ' + cls + '">' + TIPO_ICO[d.tipo] + '</span>' +
+      '<span class="r-main"><span class="r-title">' + esc(d.fornitore) + '</span><br><span class="r-sub">' + esc(TIPO_LABEL[d.tipo]) + ' · ' + esc(fmtDateIT(d.data)) + (d.numero ? ' · n. ' + esc(d.numero) : '') + '</span></span>' +
+      '<span class="r-amt">' + esc(fmtEUR(d.importo)) + '</span></button>';
+  }).join('') : '<div class="empty"><div class="big">🗂️</div><h3>Nessun documento</h3><p>Registra la tua prima fattura o scontrino.</p></div>';
+  $('#sample-wrap').style.display = docs.length ? 'none' : '';
+}
+function renderAll() { freshURLs(); renderCounts(); renderDashboard(); renderSection('fattura'); renderSection('scontrino'); }
+
+/* ============================== Navigazione ============================== */
+function setView(v) {
+  state.view = v;
+  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
+  $('#view-dashboard').hidden = v !== 'dashboard';
+  $('#view-fatture').hidden = v !== 'fatture';
+  $('#view-scontrini').hidden = v !== 'scontrini';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============================== Modali: form ============================== */
+function openModal(which) {
+  $('#modal-backdrop').hidden = false;
+  $('#modal-form').hidden = which !== 'form';
+  $('#modal-detail').hidden = which !== 'detail';
+  document.body.style.overflow = 'hidden';
+}
+function closeModals() {
+  $('#modal-backdrop').hidden = true; $('#modal-form').hidden = true; $('#modal-detail').hidden = true;
+  document.body.style.overflow = '';
+  state.editingId = null; state.pendingFile = null; state.removeExistingFile = false; state.currentDetailId = null;
+}
+function setTipo(t) {
+  state.formTipo = t;
+  $$('[data-set-tipo]').forEach((b) => {
+    const on = b.dataset.setTipo === t;
+    b.classList.toggle('on-f', on && t === 'fattura');
+    b.classList.toggle('on-s', on && t === 'scontrino');
+  });
+  $('#lbl-fornitore').textContent = t === 'fattura' ? 'Fornitore *' : 'Esercente *';
+  $('#cat-list').innerHTML = catsFor(t).map((c) => '<option value="' + esc(c) + '">').join('');
+}
+function openNew(tipo) {
+  state.editingId = null; state.pendingFile = null; state.removeExistingFile = false;
+  state.lastTipo = tipo || state.lastTipo || 'scontrino';
+  $('#form-title').textContent = 'Nuovo documento';
+  $('#doc-form').reset();
+  $('#f-data').value = todayISO();
+  setTipo(state.lastTipo);
+  $('#f-categoria').value = '';
+  updateFilePreview();
+  openModal('form');
+  setTimeout(() => $('#f-fornitore').focus(), 80);
+}
+function openEdit(id) {
+  const d = state.docs.find((x) => x.id === id); if (!d) return;
+  state.editingId = id; state.pendingFile = null; state.removeExistingFile = false;
+  state.lastTipo = d.tipo;
+  $('#form-title').textContent = 'Modifica ' + TIPO_LABEL[d.tipo].toLowerCase();
+  setTipo(d.tipo);
+  $('#f-fornitore').value = d.fornitore || ''; $('#f-numero').value = d.numero || '';
+  $('#f-data').value = d.data || todayISO(); $('#f-importo').value = d.importo != null ? d.importo : '';
+  $('#f-categoria').value = d.categoria || ''; $('#f-note').value = d.note || '';
+  updateFilePreview(d);
+  openModal('form');
+}
+function currentFormFile(existingDoc) {
+  if (state.pendingFile) return { blob: state.pendingFile.blob, name: state.pendingFile.name, type: state.pendingFile.type, fresh: true };
+  if (existingDoc && existingDoc.fileBlob && !state.removeExistingFile) return { blob: existingDoc.fileBlob, name: existingDoc.fileName, type: existingDoc.fileType, fresh: false };
+  return null;
+}
+function updateFilePreview(existingDoc) {
+  const box = $('#file-preview');
+  const cur = state.pendingFile ? { blob: state.pendingFile.blob, name: state.pendingFile.name, type: state.pendingFile.type }
+    : (existingDoc && existingDoc.fileBlob && !state.removeExistingFile ? { blob: existingDoc.fileBlob, name: existingDoc.fileName, type: existingDoc.fileType } : null);
+  $('#btn-remove-file').hidden = !cur;
+  if (!cur) { box.innerHTML = ''; return; }
+  if ((cur.type || '').startsWith('image/')) {
+    box.innerHTML = '<img src="' + mkURL(cur.blob) + '" alt="Anteprima allegato"><p class="hint">📷 ' + esc(cur.name || '') + ' · ' + esc(fmtSize(cur.blob.size)) + '</p>';
+  } else {
+    box.innerHTML = '<div class="pdf-tag">📕 ' + esc(cur.name || 'documento.pdf') + ' · ' + esc(fmtSize(cur.blob.size)) + '</div>';
+  }
+}
+async function onFormSubmit(e) {
+  e.preventDefault();
+  const fornitore = $('#f-fornitore').value.trim();
+  const numero = $('#f-numero').value.trim();
+  const data = $('#f-data').value;
+  const importo = Math.round((parseFloat(String($('#f-importo').value).replace(',', '.')) || 0) * 100) / 100;
+  const categoria = $('#f-categoria').value.trim() || 'Altro';
+  const note = $('#f-note').value.trim();
+  if (!fornitore) { toast('Inserisci il fornitore / esercente', 'error'); $('#f-fornitore').focus(); return; }
+  if (!data) { toast('Inserisci la data del documento', 'error'); $('#f-data').focus(); return; }
+  if (!(importo > 0)) { toast('Inserisci un importo maggiore di zero', 'error'); $('#f-importo').focus(); return; }
+  try {
+    let doc;
+    if (state.editingId) {
+      doc = state.docs.find((x) => x.id === state.editingId); if (!doc) throw new Error('not found');
+      Object.assign(doc, { tipo: state.formTipo, fornitore: fornitore, numero: numero, data: data, importo: importo, categoria: categoria, note: note });
+      if (state.pendingFile) { doc.fileBlob = state.pendingFile.blob; doc.fileName = state.pendingFile.name; doc.fileType = state.pendingFile.type; }
+      else if (state.removeExistingFile) { doc.fileBlob = null; doc.fileName = ''; doc.fileType = ''; }
+    } else {
+      doc = { id: uid(), tipo: state.formTipo, fornitore: fornitore, numero: numero, data: data, importo: importo, categoria: categoria, note: note,
+        createdAt: Date.now(), fileBlob: null, fileName: '', fileType: '' };
+      if (state.pendingFile) { doc.fileBlob = state.pendingFile.blob; doc.fileName = state.pendingFile.name; doc.fileType = state.pendingFile.type; }
+      state.docs.push(doc);
+    }
+    await dbPut(doc);
+    const wasEdit = !!state.editingId;
+    const savedTipo = doc.tipo;
+    closeModals(); renderAll();
+    toast(wasEdit ? 'Documento aggiornato ✓' : TIPO_LABEL[savedTipo] + ' salvato ✓', 'success');
+  } catch (err) { console.error(err); toast('Errore durante il salvataggio', 'error'); }
+}
+
+/* ============================== Modale: dettaglio ============================== */
+function openDetail(id) {
+  const d = state.docs.find((x) => x.id === id); if (!d) return;
+  state.currentDetailId = id;
+  const cls = d.tipo === 'fattura' ? 'f' : 's';
+  $('#detail-title').innerHTML = TIPO_ICO[d.tipo] + ' ' + esc(TIPO_LABEL[d.tipo]) + ' <span class="pill ' + cls + '">' + esc(d.categoria || 'Altro') + '</span>';
+  let prev = '<div class="no-file">📎<br>Nessun allegato per questo documento.</div>';
+  if (d.fileBlob && (d.fileType || '').startsWith('image/')) prev = '<img src="' + mkURL(d.fileBlob) + '" alt="Allegato ' + esc(d.fornitore) + '">';
+  else if (d.fileBlob && d.fileType === 'application/pdf') prev = '<iframe src="' + mkURL(d.fileBlob) + '" title="Anteprima PDF"></iframe>';
+  $('#detail-body').innerHTML =
+    '<div class="detail-preview">' + prev + '</div>' +
+    '<div class="detail-grid">' +
+    '<div class="d-item full"><div class="k">' + (d.tipo === 'fattura' ? 'Fornitore' : 'Esercente') + '</div><div class="v">' + esc(d.fornitore) + '</div></div>' +
+    '<div class="d-item"><div class="k">Importo</div><div class="v big">' + esc(fmtEUR(d.importo)) + '</div></div>' +
+    '<div class="d-item"><div class="k">Data documento</div><div class="v">' + esc(fmtDateIT(d.data)) + '</div></div>' +
+    '<div class="d-item"><div class="k">Numero</div><div class="v">' + esc(d.numero || '—') + '</div></div>' +
+    '<div class="d-item"><div class="k">Allegato</div><div class="v">' + (d.fileBlob ? esc(d.fileName || 'allegato') + ' · ' + esc(fmtSize(d.fileBlob.size)) : '—') + '</div></div>' +
+    (d.note ? '<div class="d-item full"><div class="k">Note</div><div class="v">' + esc(d.note) + '</div></div>' : '') +
+    '<div class="d-item full"><div class="k">Registrato il</div><div class="v">' + esc(new Date(d.createdAt || Date.now()).toLocaleString('it-IT')) + '</div></div>' +
+    '</div>' +
+    '<div class="detail-actions">' +
+    (d.fileBlob ? '<button class="btn" type="button" data-action="download-doc" data-id="' + esc(d.id) + '">⬇️ Scarica</button>' : '') +
+    '<button class="btn" type="button" data-action="edit-doc" data-id="' + esc(d.id) + '">✏️ Modifica</button>' +
+    '<button class="btn btn-danger" type="button" data-action="delete-doc" data-id="' + esc(d.id) + '">🗑️ Elimina</button>' +
+    '</div>';
+  openModal('detail');
+}
+function downloadDoc(id) {
+  const d = state.docs.find((x) => x.id === id);
+  if (!d || !d.fileBlob) { toast('Nessun allegato da scaricare', 'error'); return; }
+  const ext = d.fileType === 'application/pdf' ? '.pdf' : (d.fileType || '').startsWith('image/') ? '.jpg' : '';
+  downloadBlob(d.fileBlob, d.fileName || (d.tipo + '-' + (d.data || 'doc') + ext));
+  toast('Download avviato ✓', 'success');
+}
+async function deleteDoc(id) {
+  const d = state.docs.find((x) => x.id === id); if (!d) return;
+  if (!confirm('Eliminare "' + d.fornitore + '" (' + fmtEUR(d.importo) + ')?\nL’operazione non può essere annullata.')) return;
+  try {
+    await dbDel(id);
+    state.docs = state.docs.filter((x) => x.id !== id);
+    closeModals(); renderAll();
+    toast('Documento eliminato', 'success');
+  } catch (e) { toast('Errore durante l’eliminazione', 'error'); }
+}
+
+/* ============================== Export / Import / Backup ============================== */
+function exportCSV(tipo) {
+  const arr = getFiltered(tipo);
+  if (!arr.length) { toast('Nessun documento da esportare', 'error'); return; }
+  const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const rows = [['Tipo', 'Fornitore/Esercente', 'Numero', 'Data', 'Importo_EUR', 'Categoria', 'Note', 'Allegato'].join(';')];
+  arr.forEach((d) => rows.push([TIPO_LABEL[d.tipo], q(d.fornitore), q(d.numero || ''), d.data || '', String(d.importo).replace('.', ','), q(d.categoria || ''), q(d.note || ''), q(d.fileName || '')].join(';')));
+  downloadBlob(new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' }), tipo === 'fattura' ? 'fatture-' + todayISO() + '.csv' : 'scontrini-' + todayISO() + '.csv');
+  toast('CSV esportato: ' + arr.length + ' righe ✓', 'success');
+}
+async function backupJSON() {
+  if (!state.docs.length) { toast('Nessun documento da salvare nel backup', 'error'); return; }
+  toast('Preparazione backup…', 'info');
+  try {
+    const docs = [];
+    for (const d of state.docs) {
+      const copy = Object.assign({}, d);
+      delete copy.fileBlob;
+      copy.fileDataUrl = d.fileBlob ? await blobToDataURL(d.fileBlob) : '';
+      docs.push(copy);
+    }
+    downloadBlob(new Blob([JSON.stringify({ app: 'fatture-scontrini', version: 1, exportedAt: new Date().toISOString(), docs: docs }, null, 1)], { type: 'application/json' }), 'backup-fatture-scontrini-' + todayISO() + '.json');
+    toast('Backup scaricato ✓', 'success');
+  } catch (e) { console.error(e); toast('Errore durante il backup', 'error'); }
+}
+async function restoreJSON(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const list = Array.isArray(parsed) ? parsed : parsed.docs;
+    if (!Array.isArray(list) || !list.length) { toast('File di backup non valido o vuoto', 'error'); return; }
+    toast('Ripristino in corso…', 'info');
+    const ids = new Set(state.docs.map((d) => d.id));
+    let n = 0;
+    for (const raw of list) {
+      if (!raw || (raw.tipo !== 'fattura' && raw.tipo !== 'scontrino')) continue;
+      const doc = {
+        id: raw.id && !ids.has(raw.id) ? raw.id : uid(),
+        tipo: raw.tipo, fornitore: String(raw.fornitore || 'Senza nome').slice(0, 120),
+        numero: String(raw.numero || '').slice(0, 60), data: raw.data || todayISO(),
+        importo: Number(raw.importo) || 0, categoria: String(raw.categoria || 'Altro').slice(0, 60),
+        note: String(raw.note || '').slice(0, 500), createdAt: Number(raw.createdAt) || Date.now(),
+        fileBlob: null, fileName: String(raw.fileName || ''), fileType: String(raw.fileType || '')
+      };
+      if (raw.fileDataUrl) { try { doc.fileBlob = await dataURLToBlob(raw.fileDataUrl); if (!doc.fileType) doc.fileType = doc.fileBlob.type; } catch (e) {} }
+      ids.add(doc.id); state.docs.push(doc); await dbPut(doc); n++;
+    }
+    renderAll();
+    toast('Ripristinati ' + n + ' documenti ✓', 'success');
+  } catch (e) { console.error(e); toast('Impossibile leggere il backup', 'error'); }
+}
+
+/* ============================== Dati di esempio ============================== */
+function loadSamples() {
+  const ago = (days) => { const d = new Date(); d.setDate(d.getDate() - days); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const samples = [
+    { tipo: 'scontrino', fornitore: 'Supermercato Sigma', numero: '4521', data: ago(1), importo: 48.90, categoria: 'Alimentari', note: 'Spesa settimanale' },
+    { tipo: 'fattura', fornitore: 'Enel Energia', numero: 'FE-2026-118', data: ago(4), importo: 132.40, categoria: 'Utenze', note: 'Bolletta luce bimestrale' },
+    { tipo: 'scontrino', fornitore: 'Bar Centrale', numero: '882', data: ago(9), importo: 12.50, categoria: 'Ristoranti e bar', note: 'Colazione di lavoro' },
+    { tipo: 'fattura', fornitore: 'TIM Business', numero: '8P-774102', data: ago(21), importo: 45.99, categoria: 'Utenze', note: 'Fibra ufficio' },
+    { tipo: 'scontrino', fornitore: 'Farmacia Comunale', numero: '3310', data: ago(35), importo: 24.30, categoria: 'Salute e farmacia', note: '' },
+    { tipo: 'fattura', fornitore: 'Cartolibreria Russo', numero: 'FT-88', data: ago(52), importo: 76.20, categoria: 'Fornitori', note: 'Cancelleria ufficio' },
+    { tipo: 'scontrino', fornitore: 'Eni Station Bari', numero: '1190', data: ago(70), importo: 60.00, categoria: 'Carburante', note: 'Pieno auto' },
+    { tipo: 'fattura', fornitore: 'Aruba Cloud', numero: 'A-99213', data: ago(105), importo: 29.99, categoria: 'Software e abbonamenti', note: 'Hosting annuale' }
+  ];
+  (async () => {
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i];
+      const doc = Object.assign({ id: uid(), createdAt: Date.now() - (samples.length - i) * 60000, fileBlob: null, fileName: '', fileType: '' }, s);
+      state.docs.push(doc); await dbPut(doc);
+    }
+    renderAll(); toast('Dati di esempio caricati ✨', 'success');
+  })();
+}
+
+/* ============================== Eventi ============================== */
+function bindEvents() {
+  $$('.tab').forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));
+  $('#btn-new').addEventListener('click', () => {
+    const t = state.view === 'fatture' ? 'fattura' : state.view === 'scontrini' ? 'scontrino' : state.lastTipo;
+    openNew(t);
+  });
+  $('#fab').addEventListener('click', () => {
+    const t = state.view === 'fatture' ? 'fattura' : state.view === 'scontrini' ? 'scontrino' : state.lastTipo;
+    openNew(t);
+  });
+  $$('[data-set-tipo]').forEach((b) => b.addEventListener('click', () => setTipo(b.dataset.setTipo)));
+  $('#doc-form').addEventListener('submit', onFormSubmit);
+  $('#file-camera').addEventListener('change', (e) => { handleIncomingFile(e.target.files[0]); e.target.value = ''; });
+  $('#file-generic').addEventListener('change', (e) => { handleIncomingFile(e.target.files[0]); e.target.value = ''; });
+  $('#file-restore').addEventListener('change', (e) => { restoreJSON(e.target.files[0]); e.target.value = ''; });
+  $('#btn-remove-file').addEventListener('click', () => {
+    state.pendingFile = null; state.removeExistingFile = true;
+    const d = state.editingId ? state.docs.find((x) => x.id === state.editingId) : null;
+    updateFilePreview(d); toast('Allegato rimosso', 'info');
+  });
+  // Drag & drop
+  const dz = $('#dropzone');
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handleIncomingFile(f); });
+  // Filtri toolbar
+  $$('[data-filter]').forEach((el) => {
+    const tipo = el.dataset.tipo, key = el.dataset.filter;
+    const apply = () => { state.filters[tipo][key] = el.value; renderSection(tipo); };
+    el.addEventListener(key === 'q' ? 'input' : 'change', key === 'q' ? debounce(apply, 220) : apply);
+  });
+  // Azioni delegate
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]'); if (!el) return;
+    const a = el.dataset.action, id = el.dataset.id, tipo = el.dataset.tipo;
+    if (a === 'new-doc') openNew(tipo || 'scontrino');
+    else if (a === 'open-detail' && id) openDetail(id);
+    else if (a === 'edit-doc' && id) openEdit(id);
+    else if (a === 'delete-doc' && id) deleteDoc(id);
+    else if (a === 'download-doc' && id) downloadDoc(id);
+    else if (a === 'export-csv') exportCSV(tipo);
+    else if (a === 'close-modal') closeModals();
+    else if (a === 'clear-filters' && tipo) {
+      state.filters[tipo] = freshFilters();
+      $('#search-' + tipo).value = ''; $('#filter-month-' + tipo).value = ''; $('#sort-' + tipo).value = 'data-desc';
+      renderSection(tipo);
+    }
+  });
+  // Invio con tastiera sulle card
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#modal-backdrop').hidden) closeModals();
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.doc-card')) { e.preventDefault(); openDetail(e.target.dataset.id); }
+  });
+  $('#modal-backdrop').addEventListener('click', (e) => { if (e.target === $('#modal-backdrop')) closeModals(); });
+  $('#btn-backup').addEventListener('click', backupJSON);
+  $('#btn-sample').addEventListener('click', loadSamples);
+  $('#btn-wipe').addEventListener('click', async () => {
+    if (!state.docs.length) { toast('Nessun dato da eliminare', 'info'); return; }
+    if (!confirm('Eliminare TUTTI i ' + state.docs.length + ' documenti?\nL’operazione non può essere annullata.')) return;
+    await dbClear(); state.docs = []; renderAll(); toast('Tutti i dati sono stati eliminati', 'success');
+  });
+}
+
+/* ============================== Init ============================== */
+(async function init() {
+  bindEvents();
+  setTipo('scontrino');
+  try { await openDB(); } catch (e) { console.warn('IndexedDB non disponibile, uso memoria temporanea', e); toast('Archiviazione locale non disponibile: i dati non saranno persistenti', 'error'); }
+  try { state.docs = await dbAll(); } catch (e) { console.error(e); state.docs = []; }
+  renderAll();
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    try { await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>
